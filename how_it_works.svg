@@ -1,0 +1,71 @@
+<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FBF9F5"/>
+      <stop offset="100%" stop-color="#F3EFE7"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1F3B36" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="340" rx="0" fill="url(#bg)"/>
+
+  <!-- ============ STEP 1 : WhatsApp message ============ -->
+  <g transform="translate(40,60)">
+    <rect x="0" y="0" width="260" height="220" rx="22" fill="#FFFFFF" filter="url(#soft)"/>
+    <!-- phone -->
+    <rect x="90" y="24" width="80" height="140" rx="14" fill="#0E7C6B"/>
+    <rect x="98" y="38" width="64" height="102" rx="4" fill="#F3EFE7"/>
+    <circle cx="130" cy="152" r="5" fill="#F3EFE7"/>
+    <!-- chat bubble -->
+    <path d="M104 54 h48 a8 8 0 0 1 8 8 v20 a8 8 0 0 1 -8 8 h-30 l-10 10 v-10 h-8 a8 8 0 0 1 -8 -8 v-20 a8 8 0 0 1 8 -8 z" fill="#F2994A"/>
+    <text x="130" y="72" text-anchor="middle" font-size="9" fill="#FFFFFF" font-weight="600">تحليل CBC</text>
+    <text x="130" y="84" text-anchor="middle" font-size="9" fill="#FFFFFF" font-weight="600">بكام؟</text>
+    <!-- label -->
+    <text x="130" y="196" text-anchor="middle" font-size="17" font-weight="700" fill="#1F2937">You message us</text>
+    <text x="130" y="216" text-anchor="middle" font-size="13" fill="#6B7280">on WhatsApp — text or voice</text>
+  </g>
+
+  <!-- arrow 1 -->
+  <path d="M310 170 C 345 170, 345 170, 378 170" stroke="#F2994A" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- ============ STEP 2 : Assistant thinks ============ -->
+  <g transform="translate(390,60)">
+    <rect x="0" y="0" width="260" height="220" rx="22" fill="#FFFFFF" filter="url(#soft)"/>
+    <!-- head / brain circle -->
+    <circle cx="130" cy="90" r="46" fill="#0E7C6B"/>
+    <!-- magnifier -->
+    <circle cx="122" cy="82" r="16" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+    <line x1="133" y1="93" x2="148" y2="108" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+    <!-- little document -->
+    <rect x="145" y="60" width="20" height="26" rx="3" fill="#F2994A"/>
+    <line x1="149" y1="67" x2="161" y2="67" stroke="#FFFFFF" stroke-width="1.5"/>
+    <line x1="149" y1="72" x2="161" y2="72" stroke="#FFFFFF" stroke-width="1.5"/>
+    <line x1="149" y1="77" x2="157" y2="77" stroke="#FFFFFF" stroke-width="1.5"/>
+    <!-- label -->
+    <text x="130" y="196" text-anchor="middle" font-size="17" font-weight="700" fill="#1F2937">It understands</text>
+    <text x="130" y="216" text-anchor="middle" font-size="13" fill="#6B7280">checks prices, tests &amp; your history</text>
+  </g>
+
+  <!-- arrow 2 -->
+  <path d="M660 170 C 695 170, 695 170, 728 170" stroke="#F2994A" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- ============ STEP 3 : Answer ============ -->
+  <g transform="translate(740,60)">
+    <rect x="0" y="0" width="220" height="220" rx="22" fill="#FFFFFF" filter="url(#soft)"/>
+    <!-- reply bubble -->
+    <path d="M40 60 h100 a10 10 0 0 1 10 10 v60 a10 10 0 0 1 -10 10 h-70 l-18 18 v-18 h-12 a10 10 0 0 1 -10 -10 v-60 a10 10 0 0 1 10 -10 z" fill="#0E7C6B"/>
+    <!-- checkmark -->
+    <circle cx="90" cy="100" r="18" fill="#F2994A"/>
+    <path d="M82 100 l6 6 l12 -13" stroke="#FFFFFF" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="90" y="196" text-anchor="middle" font-size="17" font-weight="700" fill="#1F2937">You get an answer</text>
+    <text x="90" y="216" text-anchor="middle" font-size="13" fill="#6B7280">clear, in your language</text>
+  </g>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#F2994A"/>
+    </marker>
+  </defs>
+</svg>
