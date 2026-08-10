@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import time
 from enum import verify
 from typing import Any
 
@@ -15,13 +17,20 @@ from fastapi import (
     status,
 )
 
-from app.api.deps import get_chat_service, get_history_store, get_message_dedup, get_whatsapp_client
+from app.api.deps import (
+    get_chat_service,
+    get_history_store,
+    get_message_dedup,
+    get_tts_service,
+    get_whatsapp_client,
+)
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.services import prompts
 from app.services.chat_service import ChatService
 from app.services.dedup import MessageDedup
 from app.services.history_store import ChatHistoryStore
+from app.services.tts import TextToSpeechService, TTSError
 from app.services.whatsapp_client import WhatsAppClient, WhatsAppError, suffix_for_mime_type
 import traceback
 
@@ -50,13 +59,13 @@ async def verify_webhook(request: Request):
 
     settings = get_settings()
 
-    print("Mode:", mode)
-    print("Received token:", repr(token))
-    print("Expected token:", repr(settings.whatsapp_verify_token))
+    log.info("whatsapp_webhook_verify_attempt", mode=mode, token_matches=token == settings.whatsapp_verify_token)
 
     if mode == "subscribe" and token == settings.whatsapp_verify_token:
+        log.info("whatsapp_webhook_verify_success")
         return Response(content=challenge, media_type="text/plain")
 
+    log.warning("whatsapp_webhook_verify_failed", mode=mode)
     return Response(content="Forbidden", status_code=403)
 
 
@@ -69,6 +78,7 @@ async def receive_webhook(
     history_store: ChatHistoryStore = Depends(get_history_store),
     whatsapp_client: WhatsAppClient | None = Depends(get_whatsapp_client),
     dedup: MessageDedup = Depends(get_message_dedup),
+    tts_service: TextToSpeechService | None = Depends(get_tts_service),
 ) -> Response:
     """Receives inbound WhatsApp events. Always returns 200 quickly (Meta
     retries aggressively on non-200 or slow responses) -- the actual reply
@@ -86,7 +96,9 @@ async def receive_webhook(
     #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
     payload = await request.json()
+    log.info("whatsapp_webhook_received", entry_count=len(payload.get("entry", [])))
 
+    queued = 0
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
             value = change.get("value", {})
@@ -98,10 +110,16 @@ async def receive_webhook(
                     history_store,
                     whatsapp_client,
                     dedup,
+                    tts_service,
                 )
+                queued += 1
+            statuses = value.get("statuses")
+            if statuses:
+                log.info("whatsapp_webhook_statuses_ignored", count=len(statuses))
             # value.get("statuses") (delivery/read receipts) is intentionally
             # ignored -- nothing to reply to.
 
+    log.info("whatsapp_webhook_messages_queued", queued=queued)
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -134,6 +152,7 @@ async def _send_reply(
         # Keep just the greeting line as the list body -- the numbered
         # options themselves now live in the tappable rows.
         body = answer.split("\n", 1)[0]
+        log.info("send_reply_as_menu_list", wa_id=wa_id, lang=lang)
         await whatsapp_client.send_list_message(
             wa_id,
             body,
@@ -141,7 +160,8 @@ async def _send_reply(
             prompts.MENU_LIST_ROWS[lang],
         )
         return
-
+    
+    log.info("send_reply_as_text", wa_id=wa_id)
     await whatsapp_client.send_text_message(wa_id, answer)
 
 
@@ -151,6 +171,7 @@ async def _process_message(
     history_store: ChatHistoryStore,
     whatsapp_client: WhatsAppClient,
     dedup: MessageDedup,
+    tts_service: TextToSpeechService | None = None,
 ) -> None:
     message_id = message.get("id")
     wa_id = message.get("from")
@@ -164,6 +185,7 @@ async def _process_message(
         log.info("whatsapp_duplicate_message_skipped", message_id=message_id)
         return
 
+    started = time.monotonic()
     log.info("whatsapp_message_received", message_id=message_id, wa_id=wa_id, type=msg_type)
 
     try:
@@ -178,6 +200,7 @@ async def _process_message(
 
         chat_history = await history_store.get(wa_id)
         media_path = None
+        reply_as_voice = False
 
         try:
             if msg_type == "text":
@@ -209,6 +232,7 @@ async def _process_message(
                 )
 
             elif msg_type == "audio":
+                reply_as_voice = True
                 media = message["audio"]
                 media_path = await whatsapp_client.download_media(
                     media["id"], suffix=suffix_for_mime_type(media.get("mime_type"))
@@ -231,12 +255,54 @@ async def _process_message(
                 )
 
             await history_store.set(wa_id, chat_history)
-            log.info("answer=%r", answer)
+            log.info(
+                "whatsapp_message_answered",
+                message_id=message_id,
+                wa_id=wa_id,
+                answer=answer,
+                duration_ms=round((time.monotonic() - started) * 1000, 1),
+            )
+            # 
+            # Voice-in -> voice-out: if the inbound message was a voice
+            # note and TTS is configured, send the synthesized voice reply
+            # FIRST, then the text reply below -- two separate WhatsApp
+            # messages, matching what a human agent would do (say it, then
+            # also leave it in writing). A TTS failure falls back to
+            # text-only rather than dropping the reply entirely.
+            if reply_as_voice and tts_service is not None:
+                tts_path = None
+                # The conversation's selected language (set by the
+                # language gate at the start of the chat) determines which
+                # reference voice Fish Audio uses -- see
+                # TextToSpeechService.synthesize_speech.
+                reply_lang = chat_service.language_store.get(wa_id)
+                try:
+                    tts_path = await asyncio.to_thread(
+                        tts_service.synthesize_speech, answer, reply_lang
+                    )
+                    await whatsapp_client.send_voice_reply(wa_id, tts_path)
+                    log.info(
+                        "whatsapp_voice_reply_sent",
+                        message_id=message_id,
+                        wa_id=wa_id,
+                        lang=reply_lang,
+                    )
+                except TTSError as e:
+                    log.warning("whatsapp_voice_reply_synthesis_failed", message_id=message_id, error=str(e))
+                except WhatsAppError as e:
+                    log.warning("whatsapp_voice_reply_send_failed", message_id=message_id, error=str(e))
+                finally:
+                    if tts_path is not None:
+                        tts_path.unlink(missing_ok=True)
+            elif reply_as_voice and tts_service is None:
+                log.info("whatsapp_voice_reply_skipped_not_configured", message_id=message_id)
+
             await _send_reply(whatsapp_client, chat_service, wa_id, answer)
 
         finally:
             if media_path is not None:
                 media_path.unlink(missing_ok=True)
+                log.info("whatsapp_media_tempfile_cleaned", message_id=message_id, media_path=str(media_path))
 
     except WhatsAppError as e:
         log.error("whatsapp_send_or_media_failed", message_id=message_id, error=str(e))
@@ -257,3 +323,4 @@ async def _process_message(
             )
         except WhatsAppError:
             pass
+        

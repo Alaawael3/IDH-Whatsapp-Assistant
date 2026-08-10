@@ -33,6 +33,7 @@ from app.services.prompts import QUERY_GENERATION_PROMPT  # noqa: E402
 from app.services.retrieval import RetrievalService  # noqa: E402
 from app.services.session_manager import SessionManager  # noqa: E402
 from app.services.speech import SpeechService  # noqa: E402
+from app.services.tts import TextToSpeechService  # noqa: E402
 from app.services.whatsapp_client import WhatsAppClient  # noqa: E402
 import os
 from dotenv import load_dotenv
@@ -79,10 +80,13 @@ async def lifespan(app: FastAPI):
 
     speech_service = SpeechService(settings) if settings.elevenlabs_api_key else None
     document_service = DocumentService(settings) if settings.llama_cloud_api_key else None
+    tts_service = TextToSpeechService(settings) if settings.fish_api_key else None
     if speech_service is None:
         log.warning("voice_disabled", reason="ELEVENLABS_API_KEY not set")
     if document_service is None:
         log.warning("documents_disabled", reason="LLAMA_CLOUD_API_KEY not set")
+    if tts_service is None:
+        log.warning("voice_reply_disabled", reason="FISH_API_KEY not set")
 
     whatsapp_client: WhatsAppClient | None = None
     if settings.whatsapp_access_token and settings.whatsapp_phone_number_id:
@@ -124,6 +128,7 @@ async def lifespan(app: FastAPI):
     app.state.history_store = ChatHistoryStore()
     app.state.whatsapp_client = whatsapp_client
     app.state.message_dedup = MessageDedup()
+    app.state.tts_service = tts_service
 
     log.info("app_ready")
     yield

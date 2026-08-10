@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     # --- ElevenLabs ---
     elevenlabs_api_key: str | None = None
     elevenlabs_stt_model_id: str = "scribe_v2"
+    # --- Fish Audio (text-to-speech) ---
+    # Used to generate a voice-note reply on WhatsApp whenever the inbound
+    # message itself was voice. `fish_reference_id` selects the cloned/
+    # reference voice; leave unset to use the model's default voice.
+    fish_api_key: str | None = None
+    fish_tts_model: str = "s2.1-pro-free"
+    fish_reference_id_en: str = "bf322df2096a46f18c579d0baa36f41d"
+    fish_reference_id_ar: str = "38ccd69499354b4ab8b863dc1ecde8bd"
 
     # --- LlamaCloud ---
     llama_cloud_api_key: str | None = None
