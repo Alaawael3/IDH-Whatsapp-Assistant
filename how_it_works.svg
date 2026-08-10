@@ -24,7 +24,7 @@
     <text x="130" y="84" text-anchor="middle" font-size="9" fill="#FFFFFF" font-weight="600">بكام؟</text>
     <!-- label -->
     <text x="130" y="196" text-anchor="middle" font-size="17" font-weight="700" fill="#1F2937">You message us</text>
-    <text x="130" y="216" text-anchor="middle" font-size="13" fill="#6B7280">on WhatsApp — text or voice</text>
+    <text x="130" y="216" text-anchor="middle" font-size="13" fill="#6B7280">on WhatsApp — text, voice or pdf</text>
   </g>
 
   <!-- arrow 1 -->
